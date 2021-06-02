@@ -1,0 +1,2 @@
+# credstash
+Credstash Salt Runner
