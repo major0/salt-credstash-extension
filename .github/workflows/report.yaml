@@ -21,6 +21,7 @@ jobs:
         workflow: ${{ github.event.workflow_run.name }}
         run_id: ${{ github.event.workflow_run.id }}
         run_number: ${{ github.event.workflow_run.run_number }}
+        path: reports
 
     - name: Setup Code Coverage
       run: |
@@ -39,41 +40,34 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
+        set -x
+        set -e
         # Convince codecov that it ran from the build workflow
         export GITHUB_HEAD_REF="refs/heads/${{ github.event.workflow_run.pull_request[0].head.ref }}"
         export GITHUB_BASE_REF="refs/heads/${{ github.event.workflow_run.pull_request[0].base.ref }}"
         export GITHUB_REF="refs/pull/${{ github.event.workflow_run.pull_request[0].number }}/merge"
-        export GITHUB_SHA="${{ github.event.workflow_run.pull_request[0].sha }}"
+        export GITHUB_SHA="${{ github.event.workflow_run.pull_request[0].head.sha }}"
         export GITHUB_REPOSITORY="${{ github.event.repository.full_name }}"
         export GITHUB_WORKFLOW="${{ github.event.workflow_run.name }}"
         export GITHUB_RUN_ID="${{ github.event.workflow_run.id }}"
 
-        # Fail for now
-        ls -Al */*
-        exit 1
+        for report in $(echo reports/*); do
+          test -d "${report}" || break
+          . "${report}/metadata"
 
-        for artifact in "${artifacts}"; do
-          mkdir "${GITHUB_RUN_ID}"
-          (
-            cd "${GITHUB_RUN_ID}"
-            curl -o 'artifact.zip' "${{ github.event.repository.url }}}/suites/${{ github.event.workflow_run.id }}}/artifacts/${artifact}"
-            unzip 'artifact.zip'
-            . 'artifacts/.metadata'
+          COVERAGE_ID="${OS_NAME}-${OS_VER}-Py${PY_VER}-Salt${SALT_VER}"
+          OS_FLAG="$(echo "${OS_NAME}${OS_VER}" | tr '[A-Z]' '[a-z]' | tr '.' '_')"
+          PY_FLAG="$(echo "py${PY_VER}" | tr -d '.')"
+          SALT_FLAG="$(echo "salt${SALT_VER}" | tr '.' '_')"
+          COVERAGE_FLAGS="${OS_FLAG},${PY_FLAG},${SALT_FLAG}"
 
-            COVERAGE_ID="${OS_NAME}-${OS_VER}-Py${PY_VER}-Salt${SALT_VER}"
-            OS_FLAG="$(echo "${OS_NAME}${OS_VER}" | tr '[A-Z]' '[a-z]' | tr '.' '_')"
-            PY_FLAG="$(echo "py${PY_VER}" | tr -d '.')"
-            SALT_FLAG="$(echo "salt${SALT_VER}" | tr '.' '_')"
-            COVERAGE_FLAGS="${OS_FLAG},${PY_FLAG},${SALT_FLAG}"
-
-            for report in project tests; do
-              set -- 0 1 2 3 4
-              for try; do
-                ! bash '../codecov.sh' -R "${PWD}" -n "${COVERAGE_ID}-${report}" -f "artifacts/coverage-${report}.xml" -F "${COVERAGE_FLAGS},${report}" || break
-                sleep 15
-              done
-            done &
-            wait
-          )
+          for type in project tests; do
+            set -- 0 1 2 3 4
+            for try; do
+              ! bash './codecov.sh' -R "${PWD}" -n "${COVERAGE_ID}-${type}" -f "${report}/coverage-${type}.xml" -F "${COVERAGE_FLAGS},${type}" || break
+              sleep 15
+            done
+          done &
+          wait
         done &
         wait
