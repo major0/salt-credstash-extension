@@ -12,13 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Display Event
-      run: echo "${{ toJson(github.event) }}"
+      shell: bash
+      run: |
+        printf '\n##\n#Workflow:'
+        cat<<EOF
+        ${{ toJson(github.event.workflow) }}
+        EOF
+
+        printf '\n##\n#Workflow Run:'
+        cat<<EOF
+        ${{ toJson(github.event.workflow_run) }}
+        EOF
+
+        printf '\n## Environ:\n'
+        env
+
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}}
+        fetch-depth: 0
 
     - name: Download Results Artifacts
       uses: dawidd6/action-download-artifact@v2
       with:
-        workflow: ${{ github.event.workflow.id }}
-        run_id: ${{ github.event.workflow_run.id }}
+        workflow: ${{ github.event.workflow.name }} # Contrary to the docs, the id doesn't work here
+        run_id: ${{ github.event.workflow_run.check_suite_id }}
+        run_number: ${{ github.event.workflow_run.run_number }}
 
     - name: Setup Code Coverage
       run: |
@@ -37,12 +56,13 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
+        set -x
         # Convince codecov that it ran from the build workflow
-        export GITHUB_HEAD_REF="${{ github.event.workflow_run.head_sha }}"
-        export GITHUB_REF="${{ github.event.workflow_run.head_branch }}"
-        export GITHUB_REPOSITORY="${{ github.event.html_url }}"
-        export GITHUB_RUN_ID="${{ github.event.workflow_run.id }}"
-        export GITHUB_SHA="${{ github.event.workflow_run.head_sha }}"
+        export GITHUB_REF="refs/heads/${GITHUB_REF:-${{ github.event.workflow_run.head_branch }}}"
+        export GITHUB_SHA="${GITHUB_SHA:-${{ github.event.workflow_run.head_sha }}}"
+        export GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-${{ github.event.repository.full_name }}}"
+        export GITHUB_WORKFLOW="${{ github.event.workflow.name }}"
+        export GITHUB_RUN_ID="${{ github.event.workflow_run.check_suite_id }}"
 
         # Fail for now
         ls -Al */*
