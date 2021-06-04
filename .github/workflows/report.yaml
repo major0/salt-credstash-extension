@@ -11,12 +11,14 @@ jobs:
   Coverage:
     runs-on: ubuntu-latest
     steps:
+    - name: Display Event
+      run: echo "${{ toJson(github.event) }}"
 
     - name: Download Results Artifacts
       uses: dawidd6/action-download-artifact@v2
       with:
-        workflow: Testing
-        workflow_conclusion: completed
+        workflow: ${{ github.event.workflow.id }}
+        run_id: ${{ github.event.workflow_run.id }}
 
     - name: Setup Code Coverage
       run: |
