@@ -186,8 +186,8 @@ jobs:
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: runtests-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}.log
-        path: artifacts/runtests-*.log
+        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        path: artifacts/*
 
   Windows:
     runs-on: windows-latest
@@ -310,8 +310,8 @@ jobs:
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: runtests-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}.log
-        path: artifacts/runtests-*.log
+        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        path: artifacts/*
 
   macOS:
     runs-on: macOS-latest
@@ -429,5 +429,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: runtests-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}.log
-        path: artifacts/runtests-*.log
+        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        path: artifacts/*
