@@ -34,7 +34,7 @@ jobs:
       shell: bash
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
+      run: |
         # Convince codecov that it ran from the build workflow
         export GITHUB_HEAD_REF="${{ github.event.workflow_run.head_sha }}"
         export GITHUB_REF="${{ github.event.workflow_run.head_branch }}"
@@ -42,12 +42,8 @@ jobs:
         export GITHUB_RUN_ID="${{ github.event.workflow_run.id }}"
         export GITHUB_SHA="${{ github.event.workflow_run.head_sha }}"
 
-        ls
-
-        ARTIFACTS_JSON="$(curl -s "${ACTIONS_RUNTIME_URL}_apis/pipelines/workflows/${{ github.event.workflow_run.id }}}/artifacts?api-version=6.0-preview")"
-        printf '%s' "${ARTIFACTS_JSON}" | jq -c .
-
         # Fail for now
+        ls -Al */*
         exit 1
 
         for artifact in "${artifacts}"; do
