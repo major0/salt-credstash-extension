@@ -1,0 +1,68 @@
+name: Report
+
+on:
+  workflow_run:
+    workflows:
+      - Testing
+    types:
+      - completed
+
+jobs:
+  Coverage:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Upload Coverage Results
+      shell: bash
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      run: |
+        set -e
+        if ! test -f 'codecov.sh'; then
+          set -- 0 1 2 3 4
+          for try; do
+            ! curl --max-time 30 -L 'https://codecov.io/bash' --output 'codecov.sh' || break
+            sleep 15
+          done
+        fi
+        test -f 'codecov.sh' || exit 1
+
+        # Convince codecov that it ran from the build workflow
+        export GITHUB_HEAD_REF="${{ github.event.workflow_run.head_sha }}"
+        export GITHUB_REF="${{ github.event.workflow_run.head_branch }}"
+        export GITHUB_REPOSITORY="${{ github.event.html_url }}"
+        export GITHUB_RUN_ID="${ github.event.workflow_run.id }}"
+        export GITHUB_SHA="${{ github.event.workflow_run.head_sha }}"
+
+        ARTIFACTS_JSON="$(curl -s "${ACTIONS_RUNTIME_URL}_apis/pipelines/workflows/${{ github.event.workflow_run.id }}}/artifacts?api-version=6.0-preview")"
+        printf '%s' "${ARTIFACTS_JSON}" | jq -c .
+
+        # Fail for now
+        exit 1
+
+        for artifact in "${artifacts}"; do
+          mkdir "${GITHUB_RUN_ID}"
+          (
+            cd "${GITHUB_RUN_ID}"
+            curl -o 'artifact.zip' "${{ github.event.repository.url }}}/suites/${{ github.event.workflow_run.id }}}/artifacts/${artifact}"
+            unzip 'artifact.zip'
+            . 'artifacts/.metadata'
+
+            COVERAGE_ID="${OS_NAME}-${OS_VER}-Py${PY_VER}-Salt${SALT_VER}"
+            OS_FLAG="$(echo "${OS_NAME}${OS_VER}" | tr '[A-Z]' '[a-z]' | tr '.' '_')"
+            PY_FLAG="$(echo "py${PY_VER}" | tr -d '.')"
+            SALT_FLAG="$(echo "salt${SALT_VER}" | tr '.' '_')"
+            COVERAGE_FLAGS="${OS_FLAG},${PY_FLAG},${SALT_FLAG}"
+
+            for report in project tests; do
+              set -- 0 1 2 3 4
+              for try; do
+                ! bash '../codecov.sh' -R "${PWD}" -n "${COVERAGE_ID}-${report}" -f "artifacts/coverage-${report}.xml" -F "${COVERAGE_FLAGS},${report}" || break
+                sleep 15
+              done
+            done &
+            wait
+          )
+        done &
+        wait

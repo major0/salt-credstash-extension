@@ -43,9 +43,6 @@ jobs:
   Docs:
     runs-on: ubuntu-latest
     needs: Pre-Commit
-
-    timeout-minutes: 10
-
     steps:
     - uses: actions/checkout@v2
 
@@ -60,34 +57,45 @@ jobs:
         pip install nox
 
     - name: Install Doc Requirements
-      run: |
-        nox --force-color -e docs --install-only
+      run: nox --force-color -e docs --install-only
 
     - name: Build Docs
       env:
         SKIP_REQUIREMENTS_INSTALL: YES
-      run: |
-        nox --force-color -e docs
+      run: nox --force-color -e docs
 
-  Linux:
-    runs-on: ubuntu-latest
+
+  Ubuntu:
     needs: Pre-Commit
-
-    timeout-minutes: 15
-
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
+        os-version:
+          - 20.04
+          - 18.04
         python-version:
           - 3.6
           - 3.7
           - 3.8
         salt-version:
           - 3002.6
+          - 3003
+    runs-on: ubuntu-${{ matrix.os-version }}
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Test Matrix Identifier
+      id: test
+      shell: bash
+      run: |
+        OS_NAME='Ubuntu'
+        mkdir artifacts && touch artifacts/.metadata
+        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"      >> artifacts/.metadata
+        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
+        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
+        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
+        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -112,101 +120,43 @@ jobs:
       run: |
         nox --force-color -e tests-3 -- -vv tests/
 
-    - name: Create CodeCov Flags
-      if: always()
-      id: codecov-flags
-      run: |
-        echo ::set-output name=flags::$(python -c "import sys; print('{},{},salt_{}'.format('${{ runner.os }}'.replace('-latest', ''), 'py{}{}'.format(*sys.version_info), '_'.join(str(v) for v in '${{ matrix.salt-version }}'.replace('==', '_').split('.'))))")
-
-    - name: Upload Project Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},project
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-project
-        REPORT_PATH: artifacts/coverage-project.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Tests Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},tests
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-tests
-        REPORT_PATH: artifacts/coverage-tests.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Logs
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        name: test-results-${{ steps.test.output.id }}
         path: artifacts/*
 
+
   Windows:
-    runs-on: windows-latest
     needs: Pre-Commit
-
-    timeout-minutes: 40
-
     strategy:
       fail-fast: false
-      max-parallel: 3
       matrix:
+        os-version:
+          - 2016
+          - 2019
         python-version:
           - 3.6
           - 3.7
         salt-version:
           - 3002.6
+    runs-on: windows-${{ matrix.os-version }}
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Test Matrix Identifier
+      id: test
+      shell: bash
+      run: |
+        OS_NAME="${{ runner.os }}"
+        mkdir artifacts && touch artifacts/.metadata
+        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"      >> artifacts/.metadata
+        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
+        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
+        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
+        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -236,101 +186,42 @@ jobs:
         export PATH="/C/Program Files (x86)/Windows Kits/10/bin/10.0.18362.0/x64;$PATH"
         nox --force-color -e tests-3 -- -vv tests/
 
-    - name: Create CodeCov Flags
-      if: always()
-      id: codecov-flags
-      run: |
-        echo ::set-output name=flags::$(python -c "import sys; print('{},{},salt_{}'.format('${{ runner.os }}'.replace('-latest', ''), 'py{}{}'.format(*sys.version_info), '_'.join(str(v) for v in '${{ matrix.salt-version }}'.replace('==', '_').split('.'))))")
-
-    - name: Upload Project Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},project
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-project
-        REPORT_PATH: artifacts/coverage-project.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Tests Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},tests
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-tests
-        REPORT_PATH: artifacts/coverage-tests.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Logs
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
-        path: artifacts/*
+        name: runtests-${{ steps.test.outputs.id }}
+        path: artifacts/runtests-*.log
+
 
   macOS:
-    runs-on: macOS-latest
     needs: Pre-Commit
-
-    timeout-minutes: 40
-
     strategy:
       fail-fast: false
-      max-parallel: 3
       matrix:
+        os-version:
+          - 10.15
         python-version:
           - 3.6
           - 3.7
         salt-version:
           - 3002.6
+    runs-on: macos-${{ matrix.os-version }}
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Test Matrix Identifier
+      id: test
+      shell: bash
+      run: |
+        OS_NAME="${{ runner.os }}"
+        mkdir artifacts && touch artifacts/.metadata
+        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"     >> artifacts/.metadata
+        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
+        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
+        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
+        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -355,79 +246,9 @@ jobs:
       run: |
         nox --force-color -e tests-3 -- -vv tests/
 
-    - name: Create CodeCov Flags
-      if: always()
-      id: codecov-flags
-      run: |
-        echo ::set-output name=flags::$(python -c "import sys; print('{},{},salt_{}'.format('${{ runner.os }}'.replace('-latest', ''), 'py{}{}'.format(*sys.version_info), '_'.join(str(v) for v in '${{ matrix.salt-version }}'.replace('==', '_').split('.'))))")
-
-    - name: Upload Project Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},project
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-project
-        REPORT_PATH: artifacts/coverage-project.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Tests Code Coverage
-      if: always()
-      shell: bash
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        REPORT_FLAGS: ${{ steps.codecov-flags.outputs.flags }},tests
-        REPORT_NAME: ${{ runner.os }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}-tests
-        REPORT_PATH: artifacts/coverage-tests.xml
-      run: |
-        if [ ! -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-          if curl --max-time 30 -L https://codecov.io/bash --output codecov.sh; then
-              break
-          fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-        if [ -f codecov.sh ]; then
-          n=0
-          until [ "$n" -ge 5 ]
-          do
-            if bash codecov.sh -R $(pwd) -n "${REPORT_NAME}" -f "${REPORT_PATH}" -F "${REPORT_FLAGS}"; then
-                break
-            fi
-            n=$((n+1))
-            sleep 15
-          done
-        fi
-
-    - name: Upload Logs
+    - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: test-results-${{ runner.os }}-py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        name: test-results-${{ steps.test.output.id }}
         path: artifacts/*
