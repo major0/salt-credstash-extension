@@ -85,18 +85,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Test Matrix Identifier
-      id: test
-      shell: bash
-      run: |
-        OS_NAME='Ubuntu'
-        mkdir artifacts && touch artifacts/.metadata
-        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"      >> artifacts/.metadata
-        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
-        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
-        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
-        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
@@ -120,11 +108,21 @@ jobs:
       run: |
         nox --force-color -e tests-3 -- -vv tests/
 
+    - name: Test Metadata
+      shell: bash
+      run: |
+        cat <<-EOF > artifacts/metadata
+        OS_NAME='Ubuntu'
+        OS_VER="${{ matrix.os-version }}"
+        PY_VER="${{ matrix.py-version }}"
+        SALT_VER="${{ matrix.salt-version }}"
+        EOF
+
     - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: test-results-${{ steps.test.output.id }}
+        name: reports-Ubuntu-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
         path: artifacts/*
 
 
@@ -145,18 +143,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
-    - name: Test Matrix Identifier
-      id: test
-      shell: bash
-      run: |
-        OS_NAME="${{ runner.os }}"
-        mkdir artifacts && touch artifacts/.metadata
-        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"      >> artifacts/.metadata
-        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
-        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
-        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
-        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -186,12 +172,22 @@ jobs:
         export PATH="/C/Program Files (x86)/Windows Kits/10/bin/10.0.18362.0/x64;$PATH"
         nox --force-color -e tests-3 -- -vv tests/
 
+    - name: Test Metadata
+      shell: bash
+      run: |
+        cat <<-EOF > artifacts/metadata
+        OS_NAME='Windows'
+        OS_VER="${{ matrix.os-version }}"
+        PY_VER="${{ matrix.py-version }}"
+        SALT_VER="${{ matrix.salt-version }}"
+        EOF
+
     - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: runtests-${{ steps.test.outputs.id }}
-        path: artifacts/runtests-*.log
+        name: reports-Windows-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
+        path: artifacts/*
 
 
   macOS:
@@ -210,18 +206,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
-    - name: Test Matrix Identifier
-      id: test
-      shell: bash
-      run: |
-        OS_NAME="${{ runner.os }}"
-        mkdir artifacts && touch artifacts/.metadata
-        printf 'OS_NAME="%s"\n' "${OS_NAME%-latest}"     >> artifacts/.metadata
-        printf 'OS_VER="%s"\n' "${{ matrix.os-version }}" >> artifacts/.metadata
-        printf 'PY_VER="%s"\n' "${{ matrix.py-version }}" >> artifacts/.metadata
-        printf 'SALT_VER="%s"\n' "{{ matrix.salt-version }}" >> artifacts/.metadata
-        echo "::set-output name=id::${OS_NAME}-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
@@ -246,9 +230,19 @@ jobs:
       run: |
         nox --force-color -e tests-3 -- -vv tests/
 
+    - name: Test Metadata
+      shell: bash
+      run: |
+        cat <<-EOF > artifacts/metadata
+        OS_NAME='macOS'
+        OS_VER="${{ matrix.os-version }}"
+        PY_VER="${{ matrix.py-version }}"
+        SALT_VER="${{ matrix.salt-version }}"
+        EOF
+
     - name: Upload Results
       if: always()
       uses: actions/upload-artifact@main
       with:
-        name: test-results-${{ steps.test.output.id }}
+        name: reports-macOS-${{ matrix.os-version }}-Py${{ matrix.python-version }}-Salt${{ matrix.salt-version }}
         path: artifacts/*
