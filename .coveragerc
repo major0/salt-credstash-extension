@@ -1,4 +1,5 @@
 [run]
+source = salt-credstash-extension
 branch = True
 cover_pylib = False
 relative_files = True
