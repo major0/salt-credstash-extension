@@ -8,10 +8,14 @@ on:
       - completed
 
 jobs:
-  Coverage:
+  Progress:
+    permissions:
+      checks: write
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-    - name: Begin Check Run
+    - name: Begin Report Check Run
+      if: always()
       run: |
         curl -s --request POST \
           --url 'https://api.github.com/repos/${{ github.repository }}/check_runs' \
@@ -20,7 +24,7 @@ jobs:
           --header 'Accept: application/vnd.github.v3+json' \
           --data '{
               "name": "Report",
-              "head_sha": "${{ github.event.workflow_run.pull_request[0].sha }}",
+              "head_sha": "${{ github.event.workflow_run.head_sha }}",
               "status": "in_progress",
               "output": {
                 "title": "Code Coverage Report",
@@ -28,6 +32,11 @@ jobs:
               }
             }'
 
+  Coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
     - uses: actions/checkout@v2
       with:
         ref: ${{ github.event.workflow_run.head_sha }}
@@ -57,15 +66,15 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
-        set -x
         set -e
+        test "${{ github.event.workflow_run.event }}" == 'pull_request' || exit 0
         # Convince codecov that it ran from the build workflow
         export GITHUB_HEAD_REF="refs/heads/${{ github.event.workflow_run.pull_requests[0].head.ref }}"
         export GITHUB_BASE_REF="refs/heads/${{ github.event.workflow_run.pull_requests[0].base.ref }}"
         export GITHUB_REF="refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/merge"
         export GITHUB_SHA="${{ github.event.workflow_run.pull_requests[0].head.sha }}"
         export GITHUB_REPOSITORY="${{ github.event.repository.full_name }}"
-        export GITHUB_WORKFLOW="${{ github.event.workflow_run.name }}"
+        export GITHUB_WORKFLOW="${{ github.event.workflow.name }}"
         export GITHUB_RUN_ID="${{ github.event.workflow_run.id }}"
 
         for report in $(echo reports/*); do
@@ -89,7 +98,16 @@ jobs:
         done &
         wait
 
-    - name: Begin Check Run
+
+  Finish:
+    needs: Coverage
+    if: always()
+    permissions:
+      checks: write
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+    - name: End Report Check-Run
       if: always()
       run: |
         curl -s --request POST \
@@ -99,7 +117,7 @@ jobs:
           --header 'Accept: application/vnd.github.v3+json' \
           --data '{
               "name": "Report",
-              "head_sha": "${{ github.event.workflow_run.pull_request[0].sha }}",
+              "head_sha": "${{ github.event.workflow_run.head_sha }}",
               "conclusion": "success",
               "output": {
                 "title": "Code Coverage Report",
