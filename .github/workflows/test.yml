@@ -114,7 +114,7 @@ jobs:
         cat <<-EOF > artifacts/metadata
         OS_NAME='Ubuntu'
         OS_VER="${{ matrix.os-version }}"
-        PY_VER="${{ matrix.py-version }}"
+        PY_VER="${{ matrix.python-version }}"
         SALT_VER="${{ matrix.salt-version }}"
         EOF
 
@@ -178,7 +178,7 @@ jobs:
         cat <<-EOF > artifacts/metadata
         OS_NAME='Windows'
         OS_VER="${{ matrix.os-version }}"
-        PY_VER="${{ matrix.py-version }}"
+        PY_VER="${{ matrix.python-version }}"
         SALT_VER="${{ matrix.salt-version }}"
         EOF
 
@@ -236,7 +236,7 @@ jobs:
         cat <<-EOF > artifacts/metadata
         OS_NAME='macOS'
         OS_VER="${{ matrix.os-version }}"
-        PY_VER="${{ matrix.py-version }}"
+        PY_VER="${{ matrix.python-version }}"
         SALT_VER="${{ matrix.salt-version }}"
         EOF
 
