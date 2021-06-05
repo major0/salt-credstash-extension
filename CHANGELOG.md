@@ -7,6 +7,7 @@
 - Improve logging of reporting event [\#32](https://github.com/major0/salt-credstash-extension/issues/32)
 - Add check-run support to reports workflow [\#28](https://github.com/major0/salt-credstash-extension/issues/28)
 - Refactor testing workflow [\#5](https://github.com/major0/salt-credstash-extension/issues/5)
+- Add release workflow [\#4](https://github.com/major0/salt-credstash-extension/issues/4)
 - Add automatic Changelog generation [\#3](https://github.com/major0/salt-credstash-extension/issues/3)
 - Add commitlint to the workflow [\#2](https://github.com/major0/salt-credstash-extension/issues/2)
 
