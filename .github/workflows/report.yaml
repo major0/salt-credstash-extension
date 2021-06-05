@@ -14,6 +14,15 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
+    - name: Event Log
+      run: |
+        printf '##\n# Event:\n'
+        cat<<EOF
+        ${{ toJson(github) }}
+        EOF
+        printf '##\n# Environ:\n'
+        env|sort
+
     - name: Begin Report Check Run
       if: always()
       run: |
