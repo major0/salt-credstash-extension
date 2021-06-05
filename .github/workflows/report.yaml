@@ -8,39 +8,6 @@ on:
       - completed
 
 jobs:
-  Progress:
-    permissions:
-      checks: write
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-    - name: Event Log
-      run: |
-        printf '##\n# Event:\n'
-        cat<<EOF
-        ${{ toJson(github) }}
-        EOF
-        printf '##\n# Environ:\n'
-        env|sort
-
-    - name: Begin Report Check Run
-      if: always()
-      run: |
-        curl -s --request POST \
-          --url 'https://api.github.com/repos/${{ github.repository }}/check_runs' \
-          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-          --header 'content-type: application/json' \
-          --header 'Accept: application/vnd.github.v3+json' \
-          --data '{
-              "name": "Report",
-              "head_sha": "${{ github.event.workflow_run.head_sha }}",
-              "status": "in_progress",
-              "output": {
-                "title": "Code Coverage Report",
-                "summary": "Generating"
-              }
-            }'
-
   Coverage:
     runs-on: ubuntu-latest
     permissions:
@@ -106,30 +73,3 @@ jobs:
           wait
         done &
         wait
-
-
-  Finish:
-    needs: Coverage
-    if: always()
-    permissions:
-      checks: write
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    steps:
-    - name: End Report Check-Run
-      if: always()
-      run: |
-        curl -s --request POST \
-          --url 'https://api.github.com/repos/${{ github.repository }}/check_runs' \
-          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-          --header 'content-type: application/json' \
-          --header 'Accept: application/vnd.github.v3+json' \
-          --data '{
-              "name": "Report",
-              "head_sha": "${{ github.event.workflow_run.head_sha }}",
-              "conclusion": "success",
-              "output": {
-                "title": "Code Coverage Report",
-                "summary": "Uploaded"
-              }
-            }'
